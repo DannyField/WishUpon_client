@@ -1,12 +1,12 @@
 import React from "react";
 import "../stylesheets/CreateWish.scss";
-// import Select from "react-select";
-import CreatableSelect from 'react-select/creatable';
-// import { colourOptions } from "./data";
+import CreatableSelect from "react-select/creatable";
 
 class CreateWish extends React.Component {
-  // state = {selectedOption:null}
+  state = { keywords: [] };
 
+  // on input change create new key value pairs in state
+  // based on form input id and content
   onInputChange = (event) => {
     const key = event.target.id;
     if (event.target?.files) {
@@ -18,20 +18,31 @@ class CreateWish extends React.Component {
         [key]: event.target.value,
       });
     }
-    console.log(this.state);
-    // console.log(this.props);
-    // console.log(this.body);
   };
 
+  //handleSelectChange is used in order to get input values from CreatableSelect
+  handleSelectChange = (keywords) => {
+    this.setState({ keywords });
+  };
+
+  // onFormSubmit is called when the create form is submitted
+  // A new FormData object is created, send to backend and parsed to send params
+  // since we have image file we can't send json file as content
   onFormSubmit = async (event) => {
     event.preventDefault();
-
+    // console.log(this.state)
     const body = this.state;
     const data = new FormData();
     for (let key in body) {
       data.append(`wish[${key}]`, body[key]);
     }
-    await fetch("http://localhost:3000/wishes", {
+
+    body.keywords.forEach((word, index) => {
+      data.append(`wish[keyword${index + 1}]`, word.label);
+    });
+
+    // Make a post request to create new wish
+    await fetch(`${process.env.REACT_APP_BACKEND_URL}/wishes`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -41,36 +52,46 @@ class CreateWish extends React.Component {
     this.props.history.push("/dashboard");
   };
 
+  // make a get request to get all keywords in the database for users to select from
   getKeywordsData = async () => {
-    const response = await fetch("http://localhost:3000/keywords/", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
+    const response = await fetch(
+      `${process.env.REACT_APP_BACKEND_URL}/keywords/`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
     const data = await response.json();
     this.setState({ keywordsdata: data });
-    console.log(this.state);
   };
 
+  // show keywords in the select options
+  // Users can search/select from existing options
+  // and can also create new options
+  // set "isMulti" in order to select multiple keywords
+  // build a valid options array for CreatableSelect
   renderKeywords = () => {
-    if (this.state) {
+    if (this.state.keywordsdata) {
       let keywordsarr = [];
-      this.state.keywordsdata.keywords.forEach((keyword,index)=>{
-        keywordsarr.push({value: keyword, label: keyword.word, index:index})
-      })
-      console.log(keywordsarr)
+      this.state.keywordsdata.keywords.forEach((keyword) => {
+        keywordsarr.push({
+          value: keyword,
+          label: keyword.word,
+          index: keyword.id,
+        });
+      });
+
       return (
         <div style={{ width: "250px" }}>
           <CreatableSelect
-            id="keyword1"
-            // value={selectedOption}
+            value={this.state.keywords}
             menuPlacement="auto"
             menuPosition="fixed"
-            // defaultValue={[colourOptions[2], colourOptions[3]]}
             isMulti
             name="colors"
             options={keywordsarr}
-            // onChange={this.onInputChange}
+            onChange={this.handleSelectChange}
             className="basic-multi-select"
             classNamePrefix="select"
           />
@@ -81,12 +102,11 @@ class CreateWish extends React.Component {
     }
   };
 
+  // get keywords from the database after render runs first time
   componentDidMount() {
     this.getKeywordsData();
   }
   render() {
-    // console.log(this.state);
-    // console.log(localStorage.getItem("token"));
     return (
       <div className="form-container-wish" style={{ margin: "0 0 35px 0" }}>
         <form
@@ -169,32 +189,7 @@ class CreateWish extends React.Component {
               </label>
             </div>
           </div>
-
-          <label htmlFor="keyword1">Keyword 1:</label>
-          <input
-            className="wish-input"
-            type="text"
-            name="keyword"
-            id="keyword1"
-            onChange={this.onInputChange}
-          />
-          <label htmlFor="keyword2">Keyword 2:</label>
-          <input
-            className="wish-input"
-            type="text"
-            name="keyword"
-            id="keyword2"
-            onChange={this.onInputChange}
-          />
-          <label htmlFor="keyword3">Keyword 3:</label>
-          <input
-            className="wish-input"
-            type="text"
-            name="keyword"
-            id="keyword3"
-            onChange={this.onInputChange}
-          />
-          <h3>Select from existed keywords:</h3>
+          <h3>Select from existed keywords or create new keywords:</h3>
 
           <div className="keywordsdata-container">{this.renderKeywords()}</div>
           <br />
@@ -205,7 +200,7 @@ class CreateWish extends React.Component {
             id="image"
             onChange={this.onInputChange}
           />
-          <input className="wish-submit" type="submit" value="Add Entry" />
+          <input className="wish-submit" type="submit" value="Add a wish" />
         </form>
       </div>
     );
